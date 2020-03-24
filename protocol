@@ -96,6 +96,8 @@ class Protocol():
         self.bits_per_line=32                  # Number of bits per line
         self.do_print_top_tens=True            # True: print top numbers for bit tens
         self.do_print_top_units=True           # True: print top numbers for bit units
+        self.do_print_top_tens_each=False      # False: print top numbers for bit tens on eanch bit
+        self.little_endian=False               # False to preserve default bit endianness
         self.field_list=[]                     # Header fields to be printed out
         self.parse_spec(spec)                  # Parse the received spec and populate self.field_list
 
@@ -183,15 +185,19 @@ class Protocol():
         character in the middle.
         """
         lines=["", ""]
+        if self.little_endian:
+            bit_range=range(self.bits_per_line-1,-1,-1)
+        else:
+            bit_range=range(0, self.bits_per_line)
         if self.do_print_top_tens is True:
-            for i in range(0, self.bits_per_line):
-                if str(i)[-1:]=="0":
-                    lines[0]+=" %s" % str(i)[0]
+            for i in bit_range:
+                if (i % 10 == 0) or self.do_print_top_tens_each:
+                    lines[0]+=" %s" % str((i//10))[0]
                 else:
                     lines[0]+="  "
             lines[0]+="\n"
         if self.do_print_top_units is True:
-            for i in range(0, self.bits_per_line):
+            for i in bit_range:
                 lines[1]+=" %s" % str(i)[-1:]
             #lines[1]+="\n"
         result = "".join(lines)
@@ -457,6 +463,8 @@ class Main():
         self.protocols=[]                   # List of protocols to print out
         self.bits_per_line=None             # Number of bits per line to print
         self.skip_numbers=None              # True to avoid printing bit units and tens
+        self.little_endian=None             # False to preserve default bit endianness
+        self.do_print_top_tens_each=None    # False to preserve default top format
         self.hdr_char_start=None            # Character for start of the border line
         self.hdr_char_end=None              # Character for end of the border line
         self.hdr_char_fill_odd=None         # Fill character for border odd positions
@@ -475,19 +483,21 @@ class Main():
         print("")
         self.display_usage()
         print("PARAMETERS:")
-        print(" <protocol>          : Name of an existing protocol")
-        print(" <spec>              : Field by field specification of non-existing protocol")
+        print(" <protocol>                  : Name of an existing protocol")
+        print(" <spec>                      : Field by field specification of non-existing protocol")
         print("OPTIONS:")
-        print(" -b, --bits <n>      : Number of bits per line")
-        print(" -f, --file          : Read specs from a text file")
-        print(" -h, --help          : Displays this help information")
-        print(" -n, --no-numbers    : Do not print bit numbers on top of the header")
-        print(" -V, --version       : Displays current version")
-        print(" --evenchar  <char>  : Character for the even positions of horizontal table borders")
-        print(" --oddchar   <char>  : Character for the odd positions of horizontal table borders")
-        print(" --startchar <char>  : Character that starts horizontal table borders")
-        print(" --endchar   <char>  : Character that ends horizontal table borders")
-        print(" --sepchar   <char>  : Character that separates protocol fields")
+        print(" -b, --bits <n>              : Number of bits per line")
+        print(" -f, --file                  : Read specs from a text file")
+        print(" -h, --help                  : Displays this help information")
+        print(" -n, --no-numbers            : Do not print bit numbers on top of the header")
+        print(" -r, --revert-bit-endianness : Revert bit endianness (use little-endian)")
+        print(" -t, --tens-each-bit         : Prints tens for each bit")
+        print(" -V, --version               : Displays current version")
+        print(" --evenchar  <char>          : Character for the even positions of horizontal table borders")
+        print(" --oddchar   <char>          : Character for the odd positions of horizontal table borders")
+        print(" --startchar <char>          : Character that starts horizontal table borders")
+        print(" --endchar   <char>          : Character that ends horizontal table borders")
+        print(" --sepchar   <char>          : Character that separates protocol fields")
 
 
     def get_usage(self):
@@ -590,6 +600,14 @@ class Main():
                 # Avoid displaying numbers on top of the header
                 elif argv[i]=="-n" or argv[i]=="--no-numbers":
                     self.skip_numbers=True
+
+                # Revert bit endianness
+                elif argv[i]=="-r" or argv[i]=="--revert-bit-endianness":
+                    self.little_endian=True
+
+                # Revert bit endianness
+                elif argv[i]=="-t" or argv[i]=="--tens-each-bit":
+                    self.do_print_top_tens_each=True
 
                 # Character variations
                 elif argv[i] in ["--oddchar", "--evenchar", "--startchar", "--endchar", "--sepchar"]:
@@ -705,6 +723,16 @@ class Main():
                 else:
                     self.protocols[i].do_print_top_tens=True
                     self.protocols[i].do_print_top_units=True
+            if self.little_endian is not None:
+                if self.little_endian is True:
+                    self.protocols[i].little_endian=True
+                else:
+                    self.protocols[i].little_endian=False
+            if self.do_print_top_tens_each is not None:
+                if self.do_print_top_tens_each is True:
+                    self.protocols[i].do_print_top_tens_each=True
+                else:
+                    self.protocols[i].do_print_top_tens_each=False
             if self.hdr_char_end is not None:
                 self.protocols[i].hdr_char_end=self.hdr_char_end
             if self.hdr_char_start is not None:
